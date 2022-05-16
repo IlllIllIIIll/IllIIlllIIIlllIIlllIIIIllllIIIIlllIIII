@@ -1,0 +1,1093 @@
+pcall(function()
+    local localPlayer = game:GetService("Players").LocalPlayer
+    local currentCamera = game:GetService("Workspace").CurrentCamera
+    local mouse = localPlayer:GetMouse()
+    local plr = game.Players.LocalPlayer
+    local Players = game:GetService("Players")
+    local RS = game:GetService("RunService")
+    local camera = game.Workspace.CurrentCamera
+    local boxes = {}
+
+    local function newLine()
+        local v = Drawing.new("Line")
+        v.Color = Color3.fromRGB(255, 255, 255)
+        v.From = Vector2.new(1, 1)
+        v.To = Vector2.new(0, 0)
+        v.Visible = true
+        v.Thickness = 2
+        return v
+    end
+    local function newBox(player)
+        local box = {
+            ["Player"] = player,
+            newLine(),
+            newLine(),
+            newLine(),
+            newLine()
+        }
+
+        table.insert(boxes, box)
+    end
+
+    local function shapeBox(box)
+        local player = box["Player"]
+        local TL = camera:WorldToViewportPoint(player.Character.HumanoidRootPart.CFrame * CFrame.new(-3, 3, 0).p)
+        local TR = camera:WorldToViewportPoint(player.Character.HumanoidRootPart.CFrame * CFrame.new(3, 3, 0).p)
+        local BL = camera:WorldToViewportPoint(player.Character.HumanoidRootPart.CFrame * CFrame.new(-3, -3, 0).p)
+        local BR = camera:WorldToViewportPoint(player.Character.HumanoidRootPart.CFrame * CFrame.new(3, -3, 0).p)
+        box[1].From = Vector2.new(TL.X, TL.Y) 
+        box[1].To = Vector2.new(BL.X, BL.Y)
+        box[2].To = Vector2.new(TR.X, TR.Y)
+        box[2].From = Vector2.new(TL.X, TL.Y)
+        box[3].To = Vector2.new(BR.X, BR.Y)
+        box[3].From = Vector2.new(TR.X, TR.Y)
+        box[4].To = Vector2.new(BR.X, BR.Y)
+        box[4].From = Vector2.new(BL.X, BL.Y)
+    end
+    local function visBox(box, vis)
+        for i, v in ipairs(box) do
+            v.Visible = vis
+        end
+        
+    end
+
+    local function hasBox(player)
+        for i, v in ipairs(boxes) do
+            if v["Player"] == player then
+                return true
+            end
+        end
+    end
+
+    local function unBan()
+        game:GetService("Players").LocalPlayer.PlayerGui.GameUI.Menu.MainMenuUI.Banned.Visible = false
+    end
+
+    local function getClosestPlayerToCursor(x, y)
+        local closestPlayer = nil
+        local shortestDistance = math.huge
+
+        for i, v in pairs(game:GetService("Players"):GetPlayers()) do
+            if
+                v ~= localPlayer and v.Character and v.Character:FindFirstChild("Humanoid") and
+                    v.Character.Humanoid.Health ~= 0 and
+                    v.Character:FindFirstChild("HumanoidRootPart") and
+                    v.Character:FindFirstChild("Head")
+            then
+                local pos = currentCamera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
+                local magnitude = (Vector2.new(pos.X, pos.Y) - Vector2.new(x, y)).magnitude
+
+                if magnitude < shortestDistance then
+                    closestPlayer = v
+                    shortestDistance = magnitude
+                end
+            end
+        end
+
+        return closestPlayer
+    end
+
+    local function silentAim()
+        local b = getrawmetatable(game)
+        local oldIndex = b.__index
+        if setreadonly then
+            setreadonly(b, false)
+        else
+            make_writeable(b, true)
+        end
+        local newClose = newcclosure or function(f)
+                return f
+            end
+
+        b.__index =
+            newClose(
+            function(t, k)
+                if
+                    not checkcaller() and t == mouse and tostring(k) == "X" and
+                        string.find(getfenv(2).script.Name, "Client") and
+                        getClosestPlayerToCursor()
+                then
+                    local closest = getClosestPlayerToCursor(oldIndex(t, k), oldIndex(t, "Y")).Character.Head
+                    local pos = currentCamera:WorldToScreenPoint(closest.Position)
+                    return pos.X
+                end
+                if
+                    not checkcaller() and t == mouse and tostring(k) == "Y" and
+                        string.find(getfenv(2).script.Name, "Client") and
+                        getClosestPlayerToCursor()
+                then
+                    local closest = getClosestPlayerToCursor(oldIndex(t, "X"), oldIndex(t, k)).Character.Head
+                    local pos = currentCamera:WorldToScreenPoint(closest.Position)
+                    return pos.Y
+                end
+                if
+                    t == mouse and tostring(k) == "Hit" and string.find(getfenv(2).script.Name, "Client") and
+                        getClosestPlayerToCursor()
+                then
+                    return getClosestPlayerToCursor(mouse.X, mouse.Y).Character.Head.CFrame
+                end
+
+                return oldIndex(t, k)
+            end
+        )
+
+        if setreadonly then
+            setreadonly(b, true)
+        else
+            make_writeable(b, false)
+        end
+    end
+
+    function WTS(part)
+        local screen = workspace.CurrentCamera:WorldToViewportPoint(part.Position)
+        return Vector2.new(screen.x, screen.y)
+    end
+
+    function ESPText(part, color)
+        local name = Drawing.new("Text")
+        name.Text = part.Parent.Name
+        name.Color = color
+        name.Position = WTS(part)
+        name.Size = 20.0
+        name.Outline = true
+        name.Center = true
+        name.Visible = true
+
+        game:GetService("RunService").Stepped:connect(
+            function()
+                pcall(
+                    function()
+                        local destroyed = not part:IsDescendantOf(workspace)
+                        if destroyed and name ~= nil then
+                            name:Remove()
+                        end
+                        if part ~= nil then
+                            name.Position = WTS(part)
+                        end
+                        local _, screen = workspace.CurrentCamera:WorldToViewportPoint(part.Position)
+                        if screen then
+                            name.Visible = true
+                        else
+                            name.Visible = false
+                        end
+                    end
+                )
+            end
+        )
+    end
+
+    local function spamGuns()
+        for i = 1, 100 do
+            local args = {
+                [1] = "Equip",
+                [2] = tostring(i),
+                [3] = 1
+            }
+
+            game:GetService("ReplicatedStorage").GameEvents.Misk.InventoryChange:FireServer(unpack(args))
+        end
+    end
+
+    local title = "Soggyware | " .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+
+    local OrionLib = loadstring(game:HttpGet(("https://raw.githubusercontent.com/shlexware/Orion/main/source")))()
+
+    OrionLib:MakeNotification(
+        {
+            Name = "Soggyware",
+            Content = "Welcome " .. game.Players.LocalPlayer.Name .. " the hub is loading now!",
+            Image = "rbxassetid://7072718307",
+            Time = 4
+        }
+    )
+
+    local Window = OrionLib:MakeWindow({Name = title, HidePremium = false, SaveConfig = true, ConfigFolder = "Soggyware"})
+
+    local Tab =
+        Window:MakeTab(
+        {
+            Name = "Main",
+            Icon = "rbxassetid://7072717697",
+            PremiumOnly = false
+        }
+    )
+
+    local function grabgun()
+        for _, v in next, game:GetService("Workspace").WorldIgnore.Pickups:GetChildren() do
+            if v.ClassName == "Model" then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = v.PrimaryPart.CFrame
+            end
+        end
+    end
+
+    local function sortText(num)
+        local values = {
+            {1000, "K+"},
+            {1000000, "M+"},
+            {1000000000, "B+"},
+            {1000000000000, "T+"},
+            {1000000000000000, "Q+"},
+            {10000000000000000000, "Qn+"},
+            {100000000000000000000000, " a lot of fucking money"}
+        }
+        local str = ""
+        if type(num) ~= "number" then
+            num = tonumber(num)
+        end
+        for i = 1, #values do
+            if num >= values[i][1] then
+                str = (math.floor(num / values[i][1])) .. values[i][2]
+            end
+        end
+        return (num < 1000 and num or str)
+    end
+
+    local labelMoney = Tab:AddLabel("Kills: 0 | Levels : 0  - Since Join")
+    local kill = game:GetService("Players").LocalPlayer.leaderstats.Kills.Value
+    local level = game:GetService("Players").LocalPlayer.leaderstats.Level.Value
+
+    task.spawn(
+        function()
+            while true do
+                local kill2 = game:GetService("Players").LocalPlayer.leaderstats.Kills.Value
+                local level2 = game:GetService("Players").LocalPlayer.leaderstats.Level.Value
+                local calcMoney = math.abs(kill - kill2)
+                local calcParts = math.abs(level - level2)
+                local mainMoney = sortText(calcMoney)
+                local mainParts = sortText(calcParts)
+                labelMoney:Set(tostring("Kills: " .. mainMoney .. " | Levels: " .. mainParts .. " | Since Join"))
+                task.wait(0.5)
+            end
+        end
+    )
+
+    local gamemode = Tab:AddLabel("Game Mode:")
+
+    task.spawn(
+        function()
+            while true do
+                gamemode:Set(tostring("Game Mode: " .. game:GetService("Workspace").Gamemode.Value))
+                task.wait(0.5)
+            end
+        end
+    )
+
+    Tab:AddToggle(
+        {
+            Name = "Bring Players",
+            Default = false,
+            Save = true,
+            Flag = "bring",
+            Callback = function(val)
+                getgenv().BringToggle = val
+
+                while BringToggle do task.wait()
+                    if BringToggle == true then
+                        pcall(function()
+                            for _, v in next, game:GetService("Players"):GetPlayers() do
+                                if v.Name ~= game.Players.LocalPlayer.Name then
+                                    if
+                                        (game.Players.LocalPlayer.Character.HumanoidRootPart.Position -
+                                            v.Character.HumanoidRootPart.Position).Magnitude <= 10000
+                                    then
+                                        if game.Players.LocalPlayer.Backpack:FindFirstChild("Knife") then
+                                            game.Players.LocalPlayer.Character.Humanoid:EquipTool(
+                                                game.Players.LocalPlayer.Backpack:FindFirstChild("Knife")
+                                            )
+                                        end
+                                        if game.Players.LocalPlayer.Character:FindFirstChild("Knife") then
+                                            v.Character.HumanoidRootPart.CFrame =
+                                                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame +
+                                                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.lookVector * 3.5
+                                            task.wait(0.1)
+                                            game.Players.LocalPlayer.Character.Knife:Activate()
+                                        end
+                                    end
+                                end
+                            end
+                        end)               
+                    elseif BringToggle == false then
+                        break
+                    end
+                end
+            end
+        }
+    )
+
+
+    Tab:AddToggle(
+        {
+            Name = "Bring Players | Toxic",
+            Default = false,
+            Save = true,
+            Flag = "bringToxic",
+            Callback = function(val)
+                getgenv().txcBringToggle = val
+
+                while txcBringToggle do task.wait()
+                    if txcBringToggle == true then
+                        pcall(function()
+                            for _, v in next, game:GetService("Players"):GetPlayers() do
+                                if v.Name ~= game.Players.LocalPlayer.Name then
+                                    if
+                                        (game.Players.LocalPlayer.Character.HumanoidRootPart.Position -
+                                            v.Character.HumanoidRootPart.Position).Magnitude <= 10000
+                                    then
+                                        if game.Players.LocalPlayer.Backpack:FindFirstChild("Knife") then
+                                            game.Players.LocalPlayer.Character.Humanoid:EquipTool(
+                                                game.Players.LocalPlayer.Backpack:FindFirstChild("Knife")
+                                            )
+                                        end
+                                        if game.Players.LocalPlayer.Character:FindFirstChild("Knife") then
+                                            v.Character.HumanoidRootPart.CFrame =
+                                                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame +
+                                                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame.lookVector * 3.5
+                                            task.wait(0.1)
+                                            local args = {
+                                                [1] = v.Name .. " your trash",
+                                                [2] = "All"
+                                            }
+                                            game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(unpack(args))
+
+                                            game.Players.LocalPlayer.Character.Knife:Activate()
+                                        end
+                                    end
+                                end
+                            end
+                        end)                
+                    elseif txcBringToggle == false then
+                        break
+                    end
+                end
+            end
+        }
+    )
+
+    Tab:AddToggle(
+        {
+            Name = "Silent Aim",
+            Default = false,
+            Save = true,
+            Flag = "silentAim",
+            Callback = function(val)
+                getgenv().silentAimToggle = val
+
+                if silentAimToggle == true then
+                    silentAim()
+                end
+            end
+        }
+    )
+
+    Tab:AddButton(
+        {
+            Name = "Grab Gun",
+            Callback = function()
+                grabgun()
+            end
+        }
+    )
+
+    local Tab =
+        Window:MakeTab(
+        {
+            Name = "Blatant",
+            Icon = "rbxassetid://7072715317",
+            PremiumOnly = false
+        }
+    )
+
+    Tab:AddToggle(
+        {
+            Name = "Show Hitboxes",
+            Default = false,
+            Save = true,
+            Flag = "hitboxVis",
+            Callback = function(val)
+                getgenv().hitBoxShowToggle = val
+
+                while hitBoxShowToggle do
+                    task.wait()
+                    if hitBoxShowToggle == true then
+                        for _, v in next, game:GetService("Players"):GetPlayers() do
+                            if v.Name ~= game.Players.LocalPlayer.Name then
+                                if v.Character then
+                                    v.Character.HumanoidRootPart.Transparency = 0.5
+                                end
+                            end
+                        end
+                    elseif hitBoxShowToggle == false then
+                        for _, v in next, game:GetService("Players"):GetPlayers() do
+                            if v.Name ~= game.Players.LocalPlayer.Name then
+                                if v.Character then
+                                    v.Character.HumanoidRootPart.Transparency = 1
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        }
+    )
+
+    Tab:AddButton(
+        {
+            Name = "Increase Hitboxes",
+            Callback = function()
+                for _, v in next, game:GetService("Players"):GetPlayers() do
+                    if v.Name ~= game.Players.LocalPlayer.Name then
+                        if v.Character then
+                            v.Character.HumanoidRootPart.Size = Vector3.new(10, 10, 10)
+                        end
+                    end
+                end
+            end
+        }
+    )
+
+    Tab:AddToggle(
+        {
+            Name = "Blurt Roles | Says Roles In Chat | Murder GameMode",
+            Default = false,
+            Save = true,
+            Flag = "blurtRole",
+            Callback = function(x)
+                getgenv().blurtToggle = x
+
+                while blurtToggle do
+                    task.wait()
+                    if blurtToggle == true then
+                        for _, v in next, game:GetService("Players"):GetPlayers() do
+                            if v.Backpack:FindFirstChild("Knife") or v.Character:FindFirstChild("Knife") then
+                                local args = {
+                                    [1] = "Murder: " .. v.Name,
+                                    [2] = "All"
+                                }
+                                game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(
+                                    unpack(args)
+                                )
+                            end
+                            if v.Backpack:FindFirstChild("Revolver") or v.Character:FindFirstChild("Revolver") then
+                                local args = {
+                                    [1] = "Sheriff: " .. v.Name,
+                                    [2] = "All"
+                                }
+                                game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(
+                                    unpack(args)
+                                )
+                            end
+                        end
+                        wait(60)
+                    elseif blurtToggle == false then
+                        break
+                    end
+                end
+            end
+        }
+    )
+
+    Tab:AddToggle(
+        {
+            Name = "Blurt Roles | Notification | Murder GameMode",
+            Default = false,
+            Save = true,
+            Flag = "blurtRoleNotify",
+            Callback = function(x)
+                getgenv().notifyRoleToggle = x
+
+                while notifyRoleToggle do
+                    task.wait()
+                    if notifyRoleToggle == true then
+                        for _, v in next, game:GetService("Players"):GetPlayers() do
+                            if v.Backpack:FindFirstChild("Knife") or v.Character:FindFirstChild("Knife") then
+                                OrionLib:MakeNotification(
+                                    {
+                                        Name = "Soggyware",
+                                        Content = "Murderer: " .. v.Name,
+                                        Image = "rbxassetid://7072978559",
+                                        Time = 4
+                                    }
+                                )
+                            end
+                            if v.Backpack:FindFirstChild("Revolver") or v.Character:FindFirstChild("Revolver") then
+                                OrionLib:MakeNotification(
+                                    {
+                                        Name = "Soggyware",
+                                        Content = "Sheriff: " .. v.Name,
+                                        Image = "rbxassetid://7072978559",
+                                        Time = 4
+                                    }
+                                )
+                            end
+                        end
+                        task.wait(60)
+                    elseif notifyRoleToggle == false then
+                        break
+                    end
+                end
+            end
+        }
+    )
+
+    Tab:AddButton(
+        {
+            Name = "Remove 'Ban' Screen",
+            Callback = function()
+                unBan()
+            end
+        }
+    )
+
+    local Tab =
+        Window:MakeTab(
+        {
+            Name = "Misc",
+            Icon = "rbxassetid://7072716017",
+            PremiumOnly = false
+        }
+    )
+
+    Tab:AddToggle(
+        {
+            Name = "Spam Gun Skins",
+            Default = false,
+            Save = true,
+            Flag = "gunSkin",
+            Callback = function(x)
+                getgenv().gunSkinToggle = x
+
+                while gunSkinToggle do
+                    task.wait()
+                    if gunSkinToggle then
+                        spamGuns()
+                    elseif gunSkinToggle == false then
+                        break
+                    end
+                end
+            end
+        }
+    )
+
+    Tab:AddButton(
+        {
+            Name = "Remove Barriers",
+            Callback = function()
+                if game:GetService("Workspace").WorldIgnore.Barriers then
+                    game:GetService("Workspace").WorldIgnore.Barriers:Destroy()
+                else
+                    OrionLib:MakeNotification(
+                        {
+                            Name = "Soggyware | Error",
+                            Content = "You have already destroyed barriers " .. game.Players.LocalPlayer.Name,
+                            Image = "rbxassetid://7072980286",
+                            Time = 4
+                        }
+                    )
+                end
+            end
+        }
+    )
+
+    Tab:AddButton(
+        {
+            Name = "Remove Textures",
+            Callback = function()
+                for _, v in next, workspace:GetDescendants() do
+                    if v.ClassName == "Decal" then
+                        v:Destroy()
+                    end
+                end
+            end
+        }
+    )
+
+    Tab:AddButton(
+        {
+            Name = "Headless",
+            Callback = function()
+                game.Players.LocalPlayer.Character.Head.Transparency = 1
+            end
+        }
+    )
+
+    Tab:AddToggle(
+        {
+            Name = "Remove Projectiles",
+            Default = false,
+            Save = true,
+            Flag = "removeProjectiles",
+            Callback = function(x)
+                getgenv().projectilesToggle = x
+
+                while projectilesToggle do
+                    task.wait()
+                    if projectilesToggle == true then
+                        for _, v in next, game:GetService("Workspace").WorldIgnore.Projectiles:GetChildren() do
+                            v:Destroy()
+                        end
+                    elseif projectilesToggle == false then
+                        break
+                    end
+                end
+            end
+        }
+    )
+
+    Tab:AddToggle(
+        {
+            Name = "Remove Ragdolls / Dead Bodies",
+            Default = false,
+            Save = true,
+            Flag = "deadBodies",
+            Callback = function(x)
+                getgenv().deadBodiesToggle = x
+
+                while deadBodiesToggle do
+                    task.wait()
+                    if deadBodiesToggle == true then
+                        for _, v in next, game:GetService("Workspace").Ragdolls:GetChildren() do
+                            v:Destroy()
+                        end
+                    elseif deadBodiesToggle == false then
+                        break
+                    end
+                end
+            end
+        }
+    )
+
+    local Tab =
+        Window:MakeTab(
+        {
+            Name = "Teleport",
+            Icon = "rbxassetid://7072718266",
+            PremiumOnly = false
+        }
+    )
+
+    local plrs = {}
+    local selectedPlr
+
+    for _, v in next, game:GetService("Players"):GetPlayers() do
+        if v.Name ~= game.Players.LocalPlayer.Name then
+            table.insert(plrs, v.Name)
+        end
+    end
+
+    Tab:AddDropdown(
+        {
+            Name = "Select Player",
+            Default = "nil",
+            Save = true,
+            Flag = "players",
+            Options = plrs,
+            Callback = function(x)
+                selectedPlr = x
+            end
+        }
+    )
+
+    Tab:AddButton(
+        {
+            Name = "Teleport To Player",
+            Callback = function()
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    game.Players[selectedPlr].Character.HumanoidRootPart.CFrame
+            end
+        }
+    )
+
+    Tab:AddButton(
+        {
+            Name = "Teleport To Murderer",
+            Callback = function()
+                for _, v in next, game:GetService("Players"):GetPlayers() do
+                    if v.Backpack:FindFirstChild("Knife") or v.Character:FindFirstChild("Knife") then
+                        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = v.Character.HumanoidRootPart.CFrame
+                    end
+                end
+            end
+        }
+    )
+
+    Tab:AddButton(
+        {
+            Name = "Teleport To Sheriff",
+            Callback = function()
+                for _, v in next, game:GetService("Players"):GetPlayers() do
+                    if v.Backpack:FindFirstChild("Revolver") or v.Character:FindFirstChild("Revolver") then
+                        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = v.Character.HumanoidRootPart.CFrame
+                    end
+                end
+            end
+        }
+    )
+
+    Tab:AddButton(
+        {
+            Name = "Teleport To Lobby",
+            Callback = function()
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    game:GetService("Workspace").Lobby.LobbySpecial.SpawnBounds.CFrame
+            end
+        }
+    )
+
+    Tab:AddButton(
+        {
+            Name = "Teleport To Map",
+            Callback = function()
+                game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame =
+                    game:GetService("Workspace").MapMain.MapSpecial.AfkCamera.CFrame
+            end
+        }
+    )
+
+    local Tab =
+        Window:MakeTab(
+        {
+            Name = "Visuals",
+            Icon = "rbxassetid://7072716095",
+            PremiumOnly = false
+        }
+    )
+
+    Tab:AddToggle(
+        {
+            Name = "Name ESP",
+            Default = false,
+            Save = true,
+            Flag = "nameESP",
+            Callback = function(x)
+                getgenv().nameESPToggle = x
+
+                while nameESPToggle do
+                    task.wait()
+                    if nameESPToggle == true then
+                        local players = game.Players:GetChildren()
+                        for i = 1, #players do
+                            if players[i] ~= game.Players.LocalPlayer then
+                                if players[i].Character:findFirstChild("HumanoidRootPart") then
+                                    ESPText(players[i].Character.HumanoidRootPart, Color3.new(255, 255, 255))
+                                end
+                                players[i].CharacterAdded:connect(
+                                    function(char)
+                                        local hrp = char:WaitForChild("HumanoidRootPart")
+                                        ESPText(hrp, Color3.new(255, 255, 255))
+                                    end
+                                )
+                            end
+                        end
+
+                        game.Players.PlayerAdded:Connect(
+                            function(plr)
+                                plr.CharacterAdded:Connect(
+                                    function(char)
+                                        local hrp = char:WaitForChild("HumanoidRootPart")
+                                        ESPText(hrp, Color3.new(255, 255, 255))
+                                    end
+                                )
+                            end
+                        )
+                    elseif nameESPToggle == false then
+                        break
+                    end
+                end
+            end
+        }
+    )
+
+    Tab:AddToggle(
+        {
+            Name = "Box ESP",
+            Default = false,
+            Save = true,
+            Flag = "boxESP",
+            Callback = function(x)
+                getgenv().boxESPToggle = x
+
+                if boxESPToggle == true then
+                    RS.RenderStepped:Connect(
+                        function()
+                            for i, player in ipairs(Players:GetPlayers()) do
+                                if not hasBox(player) and player ~= plr then
+                                    newBox(player)
+                                end
+                            end
+                            for i, v in ipairs(boxes) do
+                                local player = v["Player"]
+                                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                                    shapeBox(v)
+                                    local _, withinScreenBounds =
+                                        camera:WorldToScreenPoint(player.Character.HumanoidRootPart.Position)
+                                    if withinScreenBounds then
+                                        visBox(v, true)
+                                    else
+                                        warn(withinScreenBounds)
+                                        visBox(v, false)
+                                    end
+                                else
+                                    visBox(v, false)
+                                end
+                            end
+                        end
+                    )
+                end
+            end
+        }
+    )
+
+    Tab:AddToggle(
+        {
+            Name = "X-RAY",
+            Default = false,
+            Save = true,
+            Flag = "xRay",
+            Callback = function(x)
+                getgenv().xrayToggle = x
+
+                while xrayToggle do
+                    task.wait()
+                    if xrayToggle == true then
+                        for _, v in next, game:GetService("Workspace").MapMain.MapParts:GetDescendants() do
+                            if v.ClassName == "Part" then
+                                v.Transparency = 0.5
+                            end
+                        end
+                    elseif xrayToggle == false then
+                        for _, v in next, game:GetService("Workspace").MapMain.MapParts:GetDescendants() do
+                            if v.ClassName == "Part" then
+                                v.Transparency = 0
+                            end
+                        end
+                    end
+                end
+            end
+        }
+    )
+
+    Tab:AddTextbox(
+        {
+            Name = "Spoof Gems",
+            Default = "",
+            TextDisappear = true,
+            Callback = function(x)
+                game:GetService("Players").LocalPlayer.PlayerGui.GameUI.Menu.Currency.GemHolder.AnimHolder.Amount.Text =
+                    tostring(x)
+            end
+        }
+    )
+
+    local Tab =
+        Window:MakeTab(
+        {
+            Name = "Player",
+            Icon = "rbxassetid://7072724538",
+            PremiumOnly = false
+        }
+    )
+
+    Tab:AddSlider(
+        {
+            Name = "Walkspeed",
+            Min = 16,
+            Max = 500,
+            Default = 16,
+            Color = Color3.fromRGB(255, 255, 255),
+            Increment = 1,
+            ValueName = "",
+            Callback = function(x)
+                game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = x
+            end
+        }
+    )
+
+    Tab:AddSlider(
+        {
+            Name = "Jump Power",
+            Min = 50,
+            Max = 500,
+            Default = 50,
+            Color = Color3.fromRGB(255, 255, 255),
+            Increment = 1,
+            ValueName = "",
+            Callback = function(x)
+                game.Players.LocalPlayer.Character.Humanoid.JumpPower = x
+            end
+        }
+    )
+
+    Tab:AddSlider(
+        {
+            Name = "FOV",
+            Min = 70,
+            Max = 120,
+            Default = 70,
+            Color = Color3.fromRGB(255, 255, 255),
+            Increment = 1,
+            ValueName = "",
+            Callback = function(x)
+                game:GetService("Workspace").Camera.FieldOfView = x
+            end
+        }
+    )
+
+    local Tab =
+        Window:MakeTab(
+        {
+            Name = "Settings",
+            Icon = "rbxassetid://7072721682",
+            PremiumOnly = false
+        }
+    )
+
+    Tab:AddButton(
+        {
+            Name = "Join Discord Server",
+            Callback = function()
+                local http = game:GetService("HttpService")
+                if toClipboard then
+                    toClipboard("https://discord.gg/soggy")
+                else
+                end
+                local req =
+                    syn and syn.request or http and http.request or http_request or fluxus and fluxus.request or
+                    getgenv().request or
+                    request
+                if req then
+                    req(
+                        {
+                            Url = "http://127.0.0.1:6463/rpc?v=1",
+                            Method = "POST",
+                            Headers = {
+                                ["Content-Type"] = "application/json",
+                                Origin = "https://discord.com"
+                            },
+                            Body = http:JSONEncode(
+                                {
+                                    cmd = "INVITE_BROWSER",
+                                    nonce = http:GenerateGUID(false),
+                                    args = {code = "soggy"}
+                                }
+                            )
+                        }
+                    )
+                end
+            end
+        }
+    )
+
+    Tab:AddButton(
+        {
+            Name = "Anti-AFK",
+            Callback = function()
+                local Players = game:GetService("Players")
+                local GC = getconnections or get_signal_cons
+                if GC then
+                    for i, v in pairs(GC(Players.LocalPlayer.Idled)) do
+                        if v["Disable"] then
+                            v["Disable"](v)
+                        elseif v["Disconnect"] then
+                            v["Disconnect"](v)
+                        else
+                            print("")
+                        end
+                    end
+                elseif not GC then
+                    OrionLib:MakeNotification(
+                        {
+                            Name = "Soggyware | Error",
+                            Content = "Your executor does not support getconnections " .. game.Players.LocalPlayer.Name,
+                            Image = "rbxassetid://7072980286",
+                            Time = 4
+                        }
+                    )
+                end
+            end
+        }
+    )
+
+    Tab:AddButton(
+        {
+            Name = "Destroy UI",
+            Callback = function()
+                OrionLib:Destroy()
+            end
+        }
+    )
+
+    Tab:AddTextbox(
+        {
+            Name = "Load Config",
+            Default = "",
+            TextDisappear = true,
+            Callback = function(x)
+                print(x)
+            end
+        }
+    )
+
+    Tab:AddLabel("Need Support? discord.gg/soggy")
+    Tab:AddLabel("Made By: Sunken")
+    Tab:AddLabel("Inspiration: RealKing#0001")
+
+    local Tab =
+        Window:MakeTab(
+        {
+            Name = "Premium",
+            Icon = "rbxassetid://7072717958",
+            PremiumOnly = false
+        }
+    )
+
+    Tab:AddButton(
+        {
+            Name = "Get Key",
+            Callback = function()
+                setclipboard("https://link-center.net/106218/keys")
+                OrionLib:MakeNotification(
+                    {
+                        Name = "Soggyware | Key System",
+                        Content = "Copied Link To Clipboard " .. game.Players.LocalPlayer.Name,
+                        Image = "rbxassetid://7072717958",
+                        Time = 4
+                    }
+                )
+            end
+        }
+    )
+
+    Tab:AddTextbox(
+        {
+            Name = "Key",
+            Default = "",
+            TextDisappear = true,
+            Callback = function(x)
+                if x == "8442e63b-974e-a691-a97b-80dca2e67210" then
+                    OrionLib:MakeNotification(
+                        {
+                            Name = "Premium | Key System",
+                            Content = "Correct Key, assigning premium now " .. game.Players.LocalPlayer.Name,
+                            Image = "rbxassetid://7072717958",
+                            Time = 4
+                        }
+                    )
+                    Premium = true
+                elseif x ~= "8442e63b-974e-a691-a97b-80dca2e67210" or x == "" then
+                    OrionLib:MakeNotification(
+                        {
+                            Name = "Premium | Key System",
+                            Content = "Wrong Key " .. game.Players.LocalPlayer.Name,
+                            Image = "rbxassetid://7072717958",
+                            Time = 4
+                        }
+                    )
+                end
+            end
+        }
+    )
+
+    Tab:AddLabel("Premium unlocks extra features!")
+
+    OrionLib:Init()
+end)
