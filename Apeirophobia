@@ -567,7 +567,6 @@ Tab:AddTextbox(
 
 Tab:AddLabel("Need Support? discord.gg/soggy")
 Tab:AddLabel("Made By: Sunken")
-Tab:AddLabel("Inspiration: RealKing#0001")
 
 local Tab =
     Window:MakeTab(
