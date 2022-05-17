@@ -319,7 +319,7 @@ Tab:AddDropdown(
     {
         Name = "Teleport To Interactable",
         Default = "nil",
-        Save = true,
+        Save = false,
         Flag = "intereactbales",
         Options = interacts,
         Callback = function(x)
@@ -332,7 +332,7 @@ Tab:AddDropdown(
     {
         Name = "Teleport To Area",
         Default = "nil",
-        Save = true,
+        Save = false,
         Flag = "area",
         Options = areas,
         Callback = function(x)
