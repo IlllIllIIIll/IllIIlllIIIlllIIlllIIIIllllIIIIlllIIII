@@ -191,7 +191,7 @@ Tab:AddToggle(
             while clickToggle do
                 if clickToggle == true then
                     click()
-                    task.wait(2)
+                    task.wait()
                 elseif clickToggle == false then
                     break
                 end
